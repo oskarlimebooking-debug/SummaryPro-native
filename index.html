@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Summary Pro</title>
+  <meta name="description" content="AI meeting summary tool - record, transcribe, summarize">
+  <meta name="theme-color" content="#1a73e8">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231a73e8' width='100' height='100' rx='20'/><text y='.9em' x='15' font-size='70'>S</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="bgIndicator" class="bg-indicator hidden">Snemanje aktivno</div>
+  <div class="container">
+    <header>
+      <h1>Summary Pro</h1>
+      <p class="subtitle">Snemaj. Prepi&scaron;i. Povzemi.</p>
+    </header>
+
+    <!-- Setup Section -->
+    <section id="setupSection" class="card">
+      <h2>Nastavitve</h2>
+      <p class="hint">Vnesite API kljuce. Shranjeni so lokalno v va&scaron;em brskalniku.</p>
+      <div class="input-group">
+        <label for="speechKeyInput">Google Speech-to-Text API <span class="hint">(neobvezno)</span></label>
+        <input type="password" id="speechKeyInput" placeholder="Google Cloud API klju&ccaron;">
+      </div>
+      <div class="input-group">
+        <label for="openaiKeyInput">OpenAI API <span class="hint">(neobvezno, za Whisper STT)</span></label>
+        <input type="password" id="openaiKeyInput" placeholder="OpenAI API klju&ccaron;">
+      </div>
+      <div class="input-group">
+        <label for="sonioxKeyInput">Soniox API <span class="hint">(neobvezno, za Soniox STT)</span></label>
+        <input type="password" id="sonioxKeyInput" placeholder="Soniox API klju&ccaron;">
+      </div>
+      <p class="hint">Potrebujete vsaj en STT klju&ccaron; (Google, OpenAI ali Soniox).</p>
+      <div class="input-group">
+        <label for="geminiKeyInput">Gemini API</label>
+        <input type="password" id="geminiKeyInput" placeholder="Gemini API klju&ccaron;">
+      </div>
+      <button id="saveKeysBtn" class="btn btn-primary">Shrani</button>
+    </section>
+
+    <!-- Tab Navigation -->
+    <nav id="appTabs" class="app-tabs hidden">
+      <button class="app-tab active" data-tab="record">Snemanje</button>
+      <button class="app-tab" data-tab="history">Zgodovina</button>
+    </nav>
+
+    <!-- Main Recording Section -->
+    <section id="mainSection" class="card hidden">
+      <div class="settings-bar">
+        <div class="language-select">
+          <label for="language">Jezik snemanja</label>
+          <select id="language">
+            <option value="sl-SI">Sloven&scaron;&ccaron;ina</option>
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="de-DE">Deutsch</option>
+            <option value="hr-HR">Hrvatski</option>
+            <option value="sr-RS">Srpski</option>
+            <option value="it-IT">Italiano</option>
+            <option value="fr-FR">Fran&ccedil;ais</option>
+            <option value="es-ES">Espa&ntilde;ol</option>
+          </select>
+        </div>
+        <div class="stt-select">
+          <label for="sttProvider">STT ponudnik</label>
+          <select id="sttProvider">
+            <option value="google">Google Speech</option>
+            <option value="whisper">OpenAI Whisper</option>
+            <option value="soniox">Soniox</option>
+          </select>
+        </div>
+        <button id="settingsBtn" class="btn btn-text">Spremeni klju&ccaron;e</button>
+      </div>
+
+      <!-- Whisper Model (shown when Whisper selected) -->
+      <div class="model-picker hidden" id="whisperModelGroup">
+        <div class="model-picker-header">
+          <label for="whisperModel">Whisper model</label>
+        </div>
+        <select id="whisperModel" class="model-dropdown">
+          <option value="whisper-1">Whisper-1</option>
+          <option value="gpt-4o-transcribe">GPT-4o Transcribe</option>
+          <option value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe</option>
+        </select>
+      </div>
+
+      <!-- AI Model Dropdown (single selection) -->
+      <div class="model-picker">
+        <div class="model-picker-header">
+          <label for="modelSelect">AI model</label>
+          <button id="refreshModels" class="btn btn-text btn-xs" title="Osve&zcaron;i seznam modelov">&#x21bb;</button>
+        </div>
+        <select id="modelSelect" class="model-dropdown">
+          <option value="">Nalaganje modelov...</option>
+        </select>
+      </div>
+
+      <div class="recorder">
+        <div class="visualizer" id="visualizer">
+          <canvas id="visualizerCanvas"></canvas>
+        </div>
+        <div class="timer" id="timer">00:00</div>
+        <div class="controls">
+          <button id="recordBtn" class="btn btn-record btn-large">Snemaj</button>
+          <button id="stopBtn" class="btn btn-stop btn-large" disabled>Po&scaron;lji</button>
+        </div>
+        <div class="status" id="status">Pripravljeno</div>
+      </div>
+    </section>
+
+    <!-- History Section -->
+    <section id="historySection" class="hidden">
+      <div id="historyList"></div>
+      <div id="historyEmpty" class="card history-empty">
+        <p>Ni shranjenih posnetkov.</p>
+        <p class="hint">Posnetki in povzetki se samodejno shranijo po obdelavi.</p>
+      </div>
+    </section>
+
+    <!-- History Detail View -->
+    <section id="historyDetailSection" class="hidden">
+      <button id="historyBackBtn" class="btn btn-secondary btn-sm history-back-btn">&larr; Nazaj</button>
+      <div class="card">
+        <div class="history-detail-header">
+          <h2 id="historyDetailTitle"></h2>
+          <button id="historyDeleteBtn" class="btn btn-text btn-delete" title="Izbri&scaron;i">Izbri&scaron;i</button>
+        </div>
+        <div class="history-detail-meta" id="historyDetailMeta"></div>
+
+        <!-- Transcript -->
+        <details class="raw-transcript" open>
+          <summary>Surovi prepis</summary>
+          <div id="historyTranscript" class="transcript-text"></div>
+          <button class="btn btn-secondary btn-sm" id="historyCopyTranscriptBtn">Kopiraj prepis</button>
+        </details>
+
+        <!-- Summary -->
+        <div id="historyDetailSummary"></div>
+
+        <!-- Regenerate summary -->
+        <div class="regenerate-bar">
+          <select id="regenerateModelSelect" class="model-dropdown"></select>
+          <button id="regenerateSummaryBtn" class="btn btn-primary btn-sm">Ponovno povzemi</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Processing Section -->
+    <section id="processingSection" class="card hidden">
+      <h2>Obdelava</h2>
+      <div class="processing-steps">
+        <div class="step" id="stepTranscribe">
+          <span class="step-dot"></span>
+          <span class="step-label">Prepisovanje govora...</span>
+        </div>
+        <div class="step" id="stepSummarize">
+          <span class="step-dot"></span>
+          <span class="step-label">AI povzemanje...</span>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="status" id="processingStatus">Po&scaron;iljanje zvoka...</div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="hidden">
+      <!-- Raw Transcript -->
+      <div class="card">
+        <details class="raw-transcript">
+          <summary>Surovi prepis</summary>
+          <div id="rawTranscript" class="transcript-text"></div>
+          <button class="btn btn-secondary btn-sm" id="copyRawBtn">Kopiraj prepis</button>
+        </details>
+      </div>
+
+      <!-- Summary Content -->
+      <div class="card">
+        <div id="modelContent"></div>
+      </div>
+
+      <button id="newSessionBtn" class="btn btn-primary btn-full">Nov posnetek</button>
+    </section>
+  </div>
+
+  <script src="background-keep-alive.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>

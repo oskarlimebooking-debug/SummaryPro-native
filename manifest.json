@@ -1,0 +1,16 @@
+{
+  "name": "Summary Pro",
+  "short_name": "SummaryPro",
+  "description": "AI-powered meeting summary tool",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#1a73e8",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231a73e8' width='100' height='100' rx='20'/><text y='.75em' x='15' font-size='70' fill='white' font-weight='bold'>S</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
