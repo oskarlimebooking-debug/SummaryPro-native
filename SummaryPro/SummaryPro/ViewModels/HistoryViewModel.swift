@@ -63,6 +63,35 @@ final class HistoryViewModel: ObservableObject {
         isRegenerating = false
     }
 
+    func refineEmail(entryId: String, instructions: String, model: GeminiModel) async {
+        guard let store = historyStore,
+              let appVM = appViewModel,
+              let entry = store.entry(for: entryId),
+              let currentEmail = entry.followUpEmail else { return }
+
+        isRegeneratingEmail = true
+        regenerateEmailError = nil
+
+        do {
+            let refined = try await MeetingEmailService.refineEmail(
+                currentEmail: currentEmail,
+                instructions: instructions,
+                transcript: entry.transcript,
+                model: model,
+                apiKey: appVM.geminiApiKey
+            )
+            store.updateEmail(id: entryId, email: refined)
+
+            if selectedEntry?.id == entryId {
+                selectedEntry = store.entry(for: entryId)
+            }
+        } catch {
+            regenerateEmailError = error.localizedDescription
+        }
+
+        isRegeneratingEmail = false
+    }
+
     func regenerateEmail(entryId: String, model: GeminiModel) async {
         guard let store = historyStore,
               let appVM = appViewModel,
