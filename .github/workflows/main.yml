@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    name: Build SummaryPro
+    name: Build SummaryPro IPA
     runs-on: macos-14
 
     steps:
@@ -26,116 +26,39 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Build for iOS Simulator
+      - name: Archive for iOS device
         run: |
           cd SummaryPro
-          xcodebuild \
+          xcodebuild archive \
             -project SummaryPro.xcodeproj \
             -scheme SummaryPro \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -configuration Release \
+            -archivePath $RUNNER_TEMP/SummaryPro.xcarchive \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
 
-      - name: Build .app bundle
+      - name: Create IPA from archive
         run: |
-          cd SummaryPro
-          xcodebuild \
-            -project SummaryPro.xcodeproj \
-            -scheme SummaryPro \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
-            -configuration Release \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          mkdir -p $RUNNER_TEMP/Payload
+          cp -R $RUNNER_TEMP/SummaryPro.xcarchive/Products/Applications/SummaryPro.app $RUNNER_TEMP/Payload/
+          cd $RUNNER_TEMP
+          zip -r SummaryPro.ipa Payload
+          echo "IPA size: $(du -h SummaryPro.ipa | cut -f1)"
 
       - name: Prepare artifact
         run: |
           mkdir -p artifact
-          cp -R SummaryPro/build/Build/Products/Release-iphonesimulator/SummaryPro.app artifact/
+          cp $RUNNER_TEMP/SummaryPro.ipa artifact/
           echo "Build completed at $(date)" > artifact/BUILD_INFO.txt
-          echo "This is a SIMULATOR build. For device installation, see README.md" >> artifact/BUILD_INFO.txt
+          echo "Unsigned IPA - use AltStore, Sideloadly, or similar to install." >> artifact/BUILD_INFO.txt
 
-      - name: Upload build artifact
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SummaryPro-build
+          name: SummaryPro-ipa
           path: artifact/
           retention-days: 30
-
-  # Optional: Build for device (requires signing secrets)
-  # Uncomment and configure to create signed .ipa files
-  #
-  # build-device:
-  #   name: Build for Device
-  #   runs-on: macos-14
-  #   if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-  #
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - name: Select Xcode
-  #       run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
-  #
-  #     - name: Install signing certificate
-  #       env:
-  #         BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-  #         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-  #         PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
-  #         KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-  #       run: |
-  #         CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-  #         PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-  #         KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-  #
-  #         echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-  #         echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode -o $PP_PATH
-  #
-  #         security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-  #         security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-  #         security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-  #         security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-  #         security list-keychain -d user -s $KEYCHAIN_PATH
-  #
-  #         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-  #         cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
-  #
-  #     - name: Archive
-  #       run: |
-  #         cd SummaryPro
-  #         xcodebuild archive \
-  #           -project SummaryPro.xcodeproj \
-  #           -scheme SummaryPro \
-  #           -sdk iphoneos \
-  #           -configuration Release \
-  #           -archivePath $RUNNER_TEMP/SummaryPro.xcarchive \
-  #           -allowProvisioningUpdates
-  #
-  #     - name: Export IPA
-  #       run: |
-  #         cat > $RUNNER_TEMP/ExportOptions.plist << EOF
-  #         <?xml version="1.0" encoding="UTF-8"?>
-  #         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-  #         <plist version="1.0">
-  #         <dict>
-  #             <key>method</key>
-  #             <string>ad-hoc</string>
-  #             <key>teamID</key>
-  #             <string>${{ secrets.TEAM_ID }}</string>
-  #         </dict>
-  #         </plist>
-  #         EOF
-  #
-  #         xcodebuild -exportArchive \
-  #           -archivePath $RUNNER_TEMP/SummaryPro.xcarchive \
-  #           -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
-  #           -exportPath $RUNNER_TEMP/export
-  #
-  #     - name: Upload IPA
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: SummaryPro-ipa
-  #         path: ${{ runner.temp }}/export/SummaryPro.ipa
-  #         retention-days: 30
