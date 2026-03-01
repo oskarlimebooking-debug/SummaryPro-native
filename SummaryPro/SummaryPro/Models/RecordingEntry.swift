@@ -1,6 +1,14 @@
 import Foundation
 
-struct RecordingEntry: Identifiable, Codable {
+struct RecordingEntry: Identifiable, Codable, Hashable {
+    static func == (lhs: RecordingEntry, rhs: RecordingEntry) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
     let id: String
     let date: Date
     var transcript: String
