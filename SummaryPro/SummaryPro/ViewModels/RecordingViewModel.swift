@@ -27,10 +27,18 @@ final class RecordingViewModel: ObservableObject {
     @Published var isMeetingMode: Bool = false
     @Published var followUpEmail: String = ""
     @Published var emailError: String?
+    @Published var isRefiningEmail: Bool = false
 
     let audioRecorder = AudioRecorder()
     private var appViewModel: AppViewModel?
     private var historyStore: HistoryStore?
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        audioRecorder.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+    }
 
     func configure(appViewModel: AppViewModel, historyStore: HistoryStore) {
         self.appViewModel = appViewModel
@@ -206,6 +214,30 @@ final class RecordingViewModel: ObservableObject {
 
         // Cleanup temp file
         audioRecorder.cleanupTempFile()
+    }
+
+    // MARK: - Email Refinement
+
+    func refineEmail(instructions: String) async {
+        guard let appVM = appViewModel,
+              let model = appVM.selectedGeminiModel,
+              !followUpEmail.isEmpty else { return }
+
+        isRefiningEmail = true
+        do {
+            let refined = try await MeetingEmailService.refineEmail(
+                currentEmail: followUpEmail,
+                instructions: instructions,
+                transcript: transcript,
+                model: model,
+                apiKey: appVM.geminiApiKey
+            )
+            followUpEmail = refined
+            emailError = nil
+        } catch {
+            emailError = error.localizedDescription
+        }
+        isRefiningEmail = false
     }
 
     // MARK: - Actions

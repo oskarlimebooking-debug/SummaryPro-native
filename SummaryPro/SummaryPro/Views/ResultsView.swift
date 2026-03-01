@@ -5,6 +5,7 @@ struct ResultsView: View {
 
     @State private var transcriptCopied = false
     @State private var emailCopied = false
+    @State private var refinePrompt = ""
 
     var body: some View {
         NavigationStack {
@@ -83,11 +84,13 @@ struct ResultsView: View {
 
                 Spacer()
 
-                Button(action: copyEmail) {
-                    Text(emailCopied ? "Kopirano!" : "Kopiraj")
-                        .font(.caption)
+                if !recordingViewModel.followUpEmail.isEmpty {
+                    Button(action: copyEmail) {
+                        Text(emailCopied ? "Kopirano!" : "Kopiraj")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
 
             if let error = recordingViewModel.emailError {
@@ -95,13 +98,50 @@ struct ResultsView: View {
                     .font(.subheadline)
                     .foregroundStyle(.red)
             } else if !recordingViewModel.followUpEmail.isEmpty {
-                Text(recordingViewModel.followUpEmail)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
+                HTMLTextView(html: recordingViewModel.followUpEmail)
+                    .frame(minHeight: 200)
             } else {
                 Text("Email ni bil generiran.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+
+            // Refine prompt
+            if !recordingViewModel.followUpEmail.isEmpty {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Popravi email")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    TextField("Navodila za popravek...", text: $refinePrompt, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(2...5)
+
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            let prompt = refinePrompt
+                            refinePrompt = ""
+                            Task {
+                                await recordingViewModel.refineEmail(instructions: prompt)
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                if recordingViewModel.isRefiningEmail {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                }
+                                Text(recordingViewModel.isRefiningEmail ? "Popravljam..." : "Popravi")
+                                    .font(.subheadline)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.102, green: 0.451, blue: 0.910))
+                        .disabled(refinePrompt.trimmingCharacters(in: .whitespaces).isEmpty || recordingViewModel.isRefiningEmail)
+                    }
+                }
             }
         }
         .padding()
@@ -139,10 +179,24 @@ struct ResultsView: View {
     }
 
     private func copyEmail() {
-        UIPasteboard.general.string = recordingViewModel.followUpEmail
+        copyHTMLToClipboard(recordingViewModel.followUpEmail)
         emailCopied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             emailCopied = false
         }
+    }
+
+    private func copyHTMLToClipboard(_ html: String) {
+        let pasteboard = UIPasteboard.general
+        var items: [[String: Any]] = []
+        var item: [String: Any] = [:]
+        if let htmlData = html.data(using: .utf8) {
+            item["public.html"] = htmlData
+        }
+        // Also add plain text fallback (strip HTML tags)
+        let plain = html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        item["public.utf8-plain-text"] = plain
+        items.append(item)
+        pasteboard.items = items
     }
 }

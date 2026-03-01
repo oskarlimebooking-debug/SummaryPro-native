@@ -366,8 +366,8 @@ enum MeetingEmailService {
         Obvezna pravila:
         * Login podatki VEDNO na ločenih vrsticah (nikoli v istem stavku)
         * Cene vedno z "€ + DDV" (nikoli samo €)
-        * Ločilna črta (__________) pred in za cenovnim blokom
-        * Subject/Zadeva: kratka, relevantna, brez generičnih fraz
+        * Ločilna črta (<hr>) pred in za cenovnim blokom
+        * Subject/Zadeva: kratka, relevantna, brez generičnih fraz — na PRVI vrstici kot "Zadeva: ..."
         * Podpis: samo "Lep pozdrav, Oskar" (ali variacija glede na ton)
 
         Dolžina:
@@ -402,6 +402,13 @@ enum MeetingEmailService {
         OUTPUT:
         Celoten email (Subject + Body), pripravljen za pošiljanje. Brez uvodnih ali zaključnih komentarjev — samo email.
 
+        POMEMBNO — FORMAT OUTPUTA:
+        Piši email v HTML formatu, ki je primeren za direktno kopiranje v Gmail.
+        Uporabi HTML oznake: <p>, <b>, <br>, <ul>, <li>, <ol>, <a href="...">, <hr>.
+        NE uporabi markdown formatiranja (brez **, ##, - seznamov).
+        Prva vrstica naj bo "Zadeva: ..." (plain text, brez HTML).
+        Ostalo telo emaila v HTML.
+
         KONTROLNA LISTA PRED ODDAJO
         Ali je ton pravi (tikanje/vikanje, formalno/sproščeno)?
         Ali so vključeni vsaj 2 specifična detajla iz sestanka?
@@ -427,6 +434,80 @@ enum MeetingEmailService {
         apiKey: String
     ) async throws -> String {
         let prompt = followUpEmailPrompt + transcript + "\n---"
+
+        var generationConfig: [String: Any] = [
+            "maxOutputTokens": model.generationConfig.maxOutputTokens,
+            "temperature": 0.7,
+        ]
+        if let thinking = model.generationConfig.thinkingConfig {
+            generationConfig["thinkingConfig"] = ["thinkingBudget": thinking.thinkingBudget]
+        }
+
+        let body: [String: Any] = [
+            "contents": [
+                ["parts": [["text": prompt]]],
+            ],
+            "generationConfig": generationConfig,
+        ]
+
+        let baseURL = "https://generativelanguage.googleapis.com/v1beta"
+        let url = URL(string: "\(baseURL)/models/\(model.id):generateContent?key=\(apiKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.timeoutInterval = 120
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EmailError.invalidResponse
+        }
+
+        if httpResponse.statusCode != 200 {
+            let errorMessage = parseErrorMessage(from: data) ?? "Gemini napaka \(httpResponse.statusCode)"
+            throw EmailError.apiError(errorMessage)
+        }
+
+        let text = extractText(from: data)
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw EmailError.emptyResponse
+        }
+
+        return text
+    }
+
+    /// Refine an existing email based on user instructions
+    static func refineEmail(
+        currentEmail: String,
+        instructions: String,
+        transcript: String,
+        model: GeminiModel,
+        apiKey: String
+    ) async throws -> String {
+        let prompt = """
+        Spodaj je obstoječi follow-up email in originalni prepis sestanka.
+        Uporabnik želi, da popraviš email po naslednjih navodilih.
+
+        POMEMBNO: Ohrani HTML format emaila (uporabi <p>, <b>, <br>, <ul>, <li>, <ol>, <a href="...">, <hr>).
+        NE uporabi markdown. Prva vrstica naj bo "Zadeva: ..." (plain text, brez HTML).
+        Vrni SAMO popravljen email, brez komentarjev ali pojasnil.
+
+        ---
+        NAVODILA ZA POPRAVEK:
+        \(instructions)
+
+        ---
+        OBSTOJEČI EMAIL:
+        \(currentEmail)
+
+        ---
+        ORIGINALNI PREPIS SESTANKA (za kontekst):
+        \(transcript)
+
+        ---
+        POPRAVLJEN EMAIL:
+        """
 
         var generationConfig: [String: Any] = [
             "maxOutputTokens": model.generationConfig.maxOutputTokens,

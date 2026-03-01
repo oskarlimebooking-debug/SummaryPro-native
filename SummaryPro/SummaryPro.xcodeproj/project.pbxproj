@@ -31,6 +31,7 @@
 		821C03B41587444EAE8C0558 /* HistoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06439A8D47DD46EC905CE39C /* HistoryDetailView.swift */; };
 		513E436389DB429AA66DC63A /* SummaryCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA476F07EBFD42B383C4022F /* SummaryCardView.swift */; };
 		3B7E9A1F2D8C4E67B4A10F23 /* MeetingEmailService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4F6B3A1E5942C8A7C20D91 /* MeetingEmailService.swift */; };
+		A4E92F6B81D34C5E9F27B8A1 /* HTMLTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3CA81D4F6E49A2B8D1E0F3 /* HTMLTextView.swift */; };
 		E9C36CACAEF94C0CA5F292DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B59C96FD7F3C4F18A7A41C10 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -58,6 +59,7 @@
 		45130F390AFA4E51A955D35C /* HistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryListView.swift; sourceTree = "<group>"; };
 		06439A8D47DD46EC905CE39C /* HistoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryDetailView.swift; sourceTree = "<group>"; };
 		CA476F07EBFD42B383C4022F /* SummaryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardView.swift; sourceTree = "<group>"; };
+		7B3CA81D4F6E49A2B8D1E0F3 /* HTMLTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTextView.swift; sourceTree = "<group>"; };
 		9E2CD57182774D96A06E7008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B59C96FD7F3C4F18A7A41C10 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8D4F6B3A1E5942C8A7C20D91 /* MeetingEmailService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingEmailService.swift; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 				45130F390AFA4E51A955D35C /* HistoryListView.swift */,
 				06439A8D47DD46EC905CE39C /* HistoryDetailView.swift */,
 				CA476F07EBFD42B383C4022F /* SummaryCardView.swift */,
+				7B3CA81D4F6E49A2B8D1E0F3 /* HTMLTextView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -248,6 +251,7 @@
 				8507B1E998E84010B97AC44D /* HistoryListView.swift in Sources */,
 				821C03B41587444EAE8C0558 /* HistoryDetailView.swift in Sources */,
 				513E436389DB429AA66DC63A /* SummaryCardView.swift in Sources */,
+				A4E92F6B81D34C5E9F27B8A1 /* HTMLTextView.swift in Sources */,
 			3B7E9A1F2D8C4E67B4A10F23 /* MeetingEmailService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

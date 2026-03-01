@@ -12,6 +12,7 @@ struct HistoryDetailView: View {
     @State private var showDeleteAlert = false
     @State private var transcriptCopied = false
     @State private var emailCopied = false
+    @State private var refinePrompt = ""
 
     var body: some View {
         ScrollView {
@@ -196,13 +197,7 @@ struct HistoryDetailView: View {
                 Spacer()
 
                 if currentEntry.followUpEmail != nil {
-                    Button(action: {
-                        UIPasteboard.general.string = currentEntry.followUpEmail
-                        emailCopied = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            emailCopied = false
-                        }
-                    }) {
+                    Button(action: copyEmail) {
                         Text(emailCopied ? "Kopirano!" : "Kopiraj")
                             .font(.caption)
                     }
@@ -224,13 +219,38 @@ struct HistoryDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(.red)
             } else if let email = currentEntry.followUpEmail, !email.isEmpty {
-                Text(email)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
+                HTMLTextView(html: email)
+                    .frame(minHeight: 200)
             } else {
                 Text("Email ni bil generiran. Uporabite gumb spodaj.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+
+            // Refine prompt
+            if let email = currentEntry.followUpEmail, !email.isEmpty, !historyViewModel.isRegeneratingEmail {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Popravi email")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    TextField("Navodila za popravek...", text: $refinePrompt, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(2...5)
+
+                    HStack {
+                        Spacer()
+                        Button(action: refineCurrentEmail) {
+                            Text("Popravi")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.102, green: 0.451, blue: 0.910))
+                        .disabled(refinePrompt.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
             }
         }
         .padding()
@@ -309,6 +329,33 @@ struct HistoryDetailView: View {
         guard let model = appViewModel.availableModels.first(where: { $0.id == selectedModelId }) else { return }
         Task {
             await historyViewModel.regenerateEmail(entryId: entry.id, model: model)
+        }
+    }
+
+    private func refineCurrentEmail() {
+        guard let model = appViewModel.availableModels.first(where: { $0.id == selectedModelId }) else { return }
+        let prompt = refinePrompt
+        refinePrompt = ""
+        Task {
+            await historyViewModel.refineEmail(entryId: entry.id, instructions: prompt, model: model)
+        }
+    }
+
+    private func copyEmail() {
+        guard let email = currentEntry.followUpEmail else { return }
+        let pasteboard = UIPasteboard.general
+        var items: [[String: Any]] = []
+        var item: [String: Any] = [:]
+        if let htmlData = email.data(using: .utf8) {
+            item["public.html"] = htmlData
+        }
+        let plain = email.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        item["public.utf8-plain-text"] = plain
+        items.append(item)
+        pasteboard.items = items
+        emailCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            emailCopied = false
         }
     }
 
