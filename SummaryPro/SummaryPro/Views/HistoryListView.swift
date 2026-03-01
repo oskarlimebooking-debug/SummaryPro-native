@@ -16,8 +16,13 @@ struct HistoryListView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Zgodovina")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(item: $historyViewModel.selectedEntry) { entry in
-                HistoryDetailView(entry: entry)
+            .navigationDestination(isPresented: Binding(
+                get: { historyViewModel.selectedEntry != nil },
+                set: { if !$0 { historyViewModel.selectedEntry = nil } }
+            )) {
+                if let entry = historyViewModel.selectedEntry {
+                    HistoryDetailView(entry: entry)
+                }
             }
         }
     }
